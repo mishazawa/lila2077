@@ -94,7 +94,11 @@ emitter.on(STATE_FINISH, (data) => {
 
 emitter.on(STATE_ROLL, (data) => {
   const next = mainState.games[data.gameId].q.next();
-  emitter.emit(STATE_FINISH, Object.assign({}, data, next));
+  const players = {
+    current: mainState.games[data.gameId].players[data.player],
+    next: mainState.games[data.gameId].players[next.next]
+  };
+  emitter.emit(STATE_FINISH, Object.assign({}, data, next, {players}));
 });
 
 
