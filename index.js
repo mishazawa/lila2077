@@ -31,14 +31,17 @@ function newGame (gameId) {
 }
 
 app.post('/game/create', (req, res) => {
-  const gameId = uuid();
+  const gameId = process.env.DEBUG_ID === "1" || uuid();
   mainState.games[gameId] = newGame(gameId);
+  // console.log(JSON.stringify(mainState, null, 2))
   return res.json({ gameId });
 });
 
 app.post('/game/:id/connect', (req, res) => {
   if (!req.params.id && !req.params.body) return res.sendStatus(400);
-  mainState.games[req.params.id].players[req.body.username] = req.body;
+  mainState.games[req.params.id].players.push(req.body);
+
+  // console.log(JSON.stringify(mainState, null, 2))
   return res.json(mainState.games[req.params.id]);
 });
 
@@ -55,6 +58,7 @@ app.post('/game/:id/start', (req, res) => {
   game.status = 'started';
   game.q = new Queue(players);
 
+  // console.log(JSON.stringify(mainState, null, 2))
   return res.json({
     gameId: game.gameId,
     pollingUrl: `/game/${game.gameId}/state`,
@@ -63,17 +67,20 @@ app.post('/game/:id/start', (req, res) => {
 });
 
 app.get('/game/:id/state', (req, res) => {
-  mainState.game[req.params.id].listeners.push(res);
+
+  mainState.games[req.params.id].listeners.push(res);
 });
 
 app.post("/game/:id/roll", (req, res) => {
-  const game = mainState.game[req.params.id];
+  const game = mainState.games[req.params.id];
 
   if (!game) res.sendStatus(400);
 
   if (game.listeners.length) {
     const { number, player } = req.body;
     emitter.emit(STATE_ROLL, { gameId: game.gameId, roll: number, player });
+
+    // console.log(mainState)
     return res.sendStatus(200);
   }
 
@@ -81,12 +88,12 @@ app.post("/game/:id/roll", (req, res) => {
 });
 
 emitter.on(STATE_FINISH, (data) => {
-  mainState[data.gameId].listeners.forEach((res) => res.json(data))
-  mainState[data.gameId].listeners = [];
+  mainState.games[data.gameId].listeners.forEach((res) => res.json(data))
+  mainState.games[data.gameId].listeners = [];
 });
 
 emitter.on(STATE_ROLL, (data) => {
-  const next = mainState[data.gameId].q.next();
+  const next = mainState.games[data.gameId].q.next();
   emitter.emit(STATE_FINISH, Object.assign({}, data, next));
 });
 
