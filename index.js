@@ -84,16 +84,14 @@ app.post("/game/:id/roll", (req, res) => {
 
   if (game.listeners.length) {
     const { number, player } = req.body;
-    emitter.emit(STATE_ROLL, { gameId: game.gameId, current: { roll: number, username: player }});
-
-    // console.log(mainState)
-    return res.sendStatus(200);
+    return emitter.emit(STATE_ROLL, { gameId: game.gameId, current: { roll: number, username: player }}, res);
   }
 
   return res.sendStatus(403);
 });
 
-emitter.on(STATE_FINISH, (data) => {
+emitter.on(STATE_FINISH, (data, res) => {
+  res.json(data);
   mainState.games[data.gameId].listeners.forEach((res) => res.json(data))
   mainState.games[data.gameId].listeners = [];
 });
@@ -103,7 +101,7 @@ emitter.on(STATE_START, (data) => {
   mainState.games[data.gameId].listeners = [];
 });
 
-emitter.on(STATE_ROLL, (data) => {
+emitter.on(STATE_ROLL, (data, res) => {
   const next = mainState.games[data.gameId].q.next();
 
 
@@ -111,7 +109,7 @@ emitter.on(STATE_ROLL, (data) => {
     Object.assign({},
       data,
       { next: mainState.games[data.gameId].players[next.next] },
-      { status: 'roll' }));
+      { status: 'roll' }), res);
 });
 
 
