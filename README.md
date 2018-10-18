@@ -79,7 +79,7 @@
 
 ```json
 {
-	"player": <queue number>,
+	"player": <queue number or username>,
 	"number": <roll number>
 }
 ```
