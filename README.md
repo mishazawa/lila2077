@@ -30,14 +30,11 @@
 {
     "gameId": <uuid of game>,
     "status": "new",
+    "haveTv": <true or false>
     "players": [
         {
             "username": <name of user>,
             "isTv": false
-        },
-        {
-            "username": <name of tv>,
-            "isTv": true
         }
     ],
     "listeners": []
@@ -67,9 +64,15 @@
 ```json
 {
     "gameId": <uuid of game>,
-    "roll": <number 1-6>,
-    "player": <current player>,
-    "next": <next player>
+    "current": {
+        "roll": <number 1-6>,
+        "username": <name of user>
+    },
+    "next": {
+        "username": <name of user>,
+        "isTv": false
+    },
+    "status": "roll"
 }
 ```
 
@@ -86,4 +89,4 @@
 
 ##### response
 
-`OK`
+same as in polling or Forbidden if nobody listen state event (nobody poll)
