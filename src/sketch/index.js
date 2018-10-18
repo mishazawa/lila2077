@@ -159,7 +159,7 @@ export const setup = function () {
   game.polling.listen('status', (data) => {
     console.log(data);
     if (data.status === 'started') {
-      data.players.filter(({isTv}) => !isTv).forEach((player, i) => {
+      data.players.forEach((player, i) => {
         if (skins[i]) {
           game.players.push(new Player(this, {
             tiles: game.field.tiles,
@@ -174,8 +174,8 @@ export const setup = function () {
     }
     if (data.status === 'roll') {
       game.players.forEach((player) => {
-        if (player.username === data.player) {
-          player.rest = data.roll;
+        if (player.username === data.current.username) {
+          player.rest = data.current.roll;
           player.state = PLAYER_STATE.moving;
           player.frameCount = 0;
         };

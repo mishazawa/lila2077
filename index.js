@@ -29,6 +29,7 @@ function newGame (gameId) {
   return {
     gameId,
     status: 'new',
+    haveTv: false,
     players: [],
     listeners: [],
   };
@@ -42,25 +43,26 @@ app.post('/game/create', (req, res) => {
 });
 
 app.post('/game/:id/connect', (req, res) => {
-  if (!req.params.id && !req.params.body) return res.sendStatus(400);
-  mainState.games[req.params.id].players.push(req.body);
+  if (!req.params.id && !req.body) return res.sendStatus(400);
 
-  // console.log(JSON.stringify(mainState, null, 2))
+  if (req.body.isTv) {
+    mainState.games[req.params.id].haveTv = true;
+  } else {
+    mainState.games[req.params.id].players.push(req.body);
+  }
   return res.json(rmListenersToSend(req.params.id));
 });
 
 app.post('/game/:id/start', (req, res) => {
-  if (!req.params.id && !req.params.body) return res.sendStatus(400);
+  if (!req.params.id && !req.body) return res.sendStatus(400);
   const game = mainState.games[req.params.id];
-  const haveTv = game.players.some(p => p.isTv);
-  if (!haveTv) {
+  if (!game.haveTv) {
     return res.json({
       error: `can't start game without tv... open game on tv`,
     });
   }
-  const players = game.players.filter(p => !p.isTv).length;
   game.status = 'started';
-  game.q = new Queue(players);
+  game.q = new Queue(game.players.length);
 
   emitter.emit(STATE_START, rmListenersToSend(req.params.id));
   // console.log(JSON.stringify(mainState, null, 2))
@@ -82,7 +84,7 @@ app.post("/game/:id/roll", (req, res) => {
 
   if (game.listeners.length) {
     const { number, player } = req.body;
-    emitter.emit(STATE_ROLL, { gameId: game.gameId, roll: number, player });
+    emitter.emit(STATE_ROLL, { gameId: game.gameId, current: { roll: number, username: player }});
 
     // console.log(mainState)
     return res.sendStatus(200);
@@ -103,11 +105,13 @@ emitter.on(STATE_START, (data) => {
 
 emitter.on(STATE_ROLL, (data) => {
   const next = mainState.games[data.gameId].q.next();
-  const players = {
-    current: mainState.games[data.gameId].players[data.player],
-    next: mainState.games[data.gameId].players[next.next]
-  };
-  emitter.emit(STATE_FINISH, Object.assign({}, data, next, { players }, { status: 'roll' }));
+
+
+  emitter.emit(STATE_FINISH,
+    Object.assign({},
+      data,
+      { next: mainState.games[data.gameId].players[next.next] },
+      { status: 'roll' }));
 });
 
 
