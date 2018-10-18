@@ -43,6 +43,13 @@ import pink_walk_8fps from './assets/pink-walk-8fps.png'
 import yell_walk_15fps from './assets/yell-walk-15fps.png';
 import yell_idle_4fps from './assets/yell-idle-4fps.png';
 
+import blue_idle from './assets/blu-idle.png'
+import blue_walk_15fps from './assets/blu-walk-15fps.png'
+
+import red_walk_15fps from './assets/red-walk-15fps.png';
+import red_idle from './assets/red-idle.png';
+
+
 import ufo_sprite from './assets/tarelka-15fps.png';
 
 const game = {
@@ -90,11 +97,15 @@ export const preload = function () {
   loadSprite.call(this, red_mask_anim, 'red_mask_anim');
 
   // characters
-  loadSprite.call(this, yell_walk_15fps, 'yell_walk');
+  loadSprite.call(this, red_idle, 'red_idle');
+  loadSprite.call(this, blue_idle, 'blue_idle');
   loadSprite.call(this, yell_idle_4fps, 'yell_idle');
   loadSprite.call(this, pink_idle_4fps, 'pink_idle');
-  loadSprite.call(this, pink_walk_8fps, 'pink_walk');
 
+  loadSprite.call(this, pink_walk_8fps, 'pink_walk');
+  loadSprite.call(this, yell_walk_15fps, 'yell_walk');
+  loadSprite.call(this, red_walk_15fps, 'red_walk');
+  loadSprite.call(this, blue_walk_15fps, 'blue_walk');
 
   // ad - hoc
   this.loadImage(ufo_sprite, (img) => {
@@ -150,7 +161,9 @@ export const setup = function () {
   });
   const skins = [
     [game.animation.yell_idle, game.animation.yell_walk],
-    [game.animation.pink_idle, game.animation.pink_walk]
+    [game.animation.pink_idle, game.animation.pink_walk],
+    [game.animation.blue_idle, game.animation.blue_walk],
+    [game.animation.red_idle, game.animation.red_walk]
     ];
 
   game.polling = new Polling();
