@@ -51,9 +51,9 @@ export class Polling {
     });
   }
 
-  connect () {
+  connect (cb) {
     return this.ajax(API_STATES.create, 'POST', {}).then((data) => {
-      console.log(data)
+      cb(data);
       this.gameId = data.gameId;
       return {
         name: 'game_display',

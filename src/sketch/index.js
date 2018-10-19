@@ -53,6 +53,7 @@ import red_idle from './assets/red-idle.png';
 import ufo_sprite from './assets/tarelka-15fps.png';
 
 const game = {
+  started: false,
   polling: null,
   players: [],
   background: null,
@@ -167,24 +168,37 @@ export const setup = function () {
     ];
 
   game.polling = new Polling();
-  game.polling.connect().then(game.polling.start);
+  game.polling.connect(({qr, gameId}) => {
+    game.qr = this.loadImage(qr);
+    game.id = gameId;
+  }).then(game.polling.start);
 
   game.polling.listen('status', (data) => {
     console.log(data);
-    if (data.status === 'started') {
-      data.players.forEach((player, i) => {
-        if (skins[i]) {
-          game.players.push(new Player(this, {
-            tiles: game.field.tiles,
-            skin: skins[i],
-            id: i,
-            username: player.username,
-            green_mask: game.animation.green_mask_anim,
-            red_mask: game.animation.red_mask_anim
-          }));
-        }
-      });
+
+    if (data.status === 'start') {
+      // when game start
     }
+
+
+    if (data.status === 'connected') {
+      // when user connect
+      if (skins[game.players.length]) {
+        game.players.push(new Player(this, {
+          tiles: game.field.tiles,
+          skin: skins[game.players.length],
+          id: game.players.length,
+          username: data.new.username,
+          green_mask: game.animation.green_mask_anim,
+          red_mask: game.animation.red_mask_anim
+        }));
+      }
+    }
+
+    if (data.status === 'started') {
+      game.started = true;
+    }
+
     if (data.status === 'roll') {
       game.players.forEach((player) => {
         if (player.username === data.current.username) {
@@ -219,6 +233,27 @@ export const setup = function () {
 export const draw = function () {
   game.layers.forEach(l => l.play());
   // add offset to everything
+
+  if (!game.started ) {
+    if (game.qr) {
+      this.push()
+      this.imageMode(this.CENTER);
+      this.translate(this.width/2, this.height/2);
+      this.image(game.qr, 0, 0);
+      this.textAlign(this.CENTER);
+      this.textSize(16);
+      this.fill(255);
+      this.stroke(0);
+      this.strokeWeight(4);
+      this.translate(0, 60);
+      this.text('Waiting...', 0, 0);
+      this.translate(0, 20);
+      this.text(`Players connected: ${game.players.length}`, 0, 0);
+      this.pop()
+    }
+    return;
+  }
+
   this.push();
   this.translate(FIELD_OFFSET, FIELD_OFFSET + 1);
   game.field.render();

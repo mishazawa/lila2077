@@ -5,7 +5,7 @@ const uuid = require('uuid/v4');
 const QRCode = require('qrcode');
 
 const { PollEmitter, Queue } = require("./queue");
-const { STATE_ROLL, STATE_FINISH, STATE_START } = require("./constants");
+const { STATE_ROLL, STATE_FINISH, STATE_START, STATE_CONNECT } = require("./constants");
 
 // setup
 const emitter = new PollEmitter();
@@ -35,8 +35,13 @@ function newGame (gameId) {
 app.post('/game/create', (req, res) => {
   const gameId = process.env.DEBUG_ID === "1" || uuid();
   mainState.games[gameId] = newGame(gameId);
-  QRCode.toDataURL(gameId.toString()).then((qr) => {
-    return res.json({ gameId, qr });
+  QRCode.toDataURL(gameId.toString(), {
+    color: {
+      dark: '#00F',  // Blue dots
+      light: '#0000' // Transparent background
+    }
+  }).then((qr) => {
+    return res.json({ gameId, qr, status: 'new' });
   }).catch((err) => {
     return res.sendStatus(500);
   })
@@ -60,6 +65,7 @@ app.post('/game/:id/connect', (req, res) => {
     if (game.status === 'started') {
       game.q.players += 1;
     }
+    emitter.emit(STATE_CONNECT, { ...game, status: 'connected', new: req.body });
   }
 
   return res.json(mainState.games[req.params.id]);
@@ -93,13 +99,14 @@ app.get('/game/:id/state', (req, res) => {
   };
 
   const timer = setTimeout(() => {
-    emitter.off(STATE_START, fn);
     emitter.off(STATE_FINISH, fn);
-    return res.sendStatus(304);
+    emitter.off(STATE_START, fn);
+    emitter.off(STATE_CONNECT, fn);
+    return res.json({});
   }, 25000);
-
-  emitter.once(STATE_START, fn);
   emitter.once(STATE_FINISH, fn);
+  emitter.once(STATE_START, fn);
+  emitter.once(STATE_CONNECT, fn);
 });
 
 app.post("/game/:id/roll", (req, res) => {
