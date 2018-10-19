@@ -12,6 +12,14 @@ class PollEmitter {
   on (...args) {
     this.emitter.on(...args);
   }
+
+  once (...args) {
+    this.emitter.once(...args);
+  }
+
+  off (...args) {
+    this.emitter.removeListener(...args);
+  }
 }
 
 

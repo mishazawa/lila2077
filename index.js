@@ -2,6 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const uuid = require('uuid/v4');
+const QRCode = require('qrcode');
 
 const { PollEmitter, Queue } = require("./queue");
 const { STATE_ROLL, STATE_FINISH, STATE_START } = require("./constants");
@@ -15,10 +16,6 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 app.use(cors());
 
-function rmListenersToSend (id) {
-  return Object.assign({}, mainState.games[id], { listeners: null })
-}
-
 const mainState = {
   games: {
 
@@ -30,31 +27,33 @@ function newGame (gameId) {
     gameId,
     status: 'new',
     haveTv: false,
-    players: [],
-    listeners: [],
+    players: []
   };
 }
 
 app.post('/game/create', (req, res) => {
   const gameId = process.env.DEBUG_ID === "1" || uuid();
   mainState.games[gameId] = newGame(gameId);
-  // console.log(JSON.stringify(mainState, null, 2))
-  return res.json({ gameId });
+  QRCode.toDataURL(gameId.toString()).then((qr) => {
+    return res.json({ gameId, qr });
+  }).catch((err) => {
+    return res.sendStatus(500);
+  })
 });
 
 app.post('/game/:id/connect', (req, res) => {
-  if (!req.params.id && !req.body) return res.sendStatus(400);
+  if (!req.params.id || !req.body) return res.sendStatus(400);
 
   if (req.body.isTv) {
     mainState.games[req.params.id].haveTv = true;
   } else {
     mainState.games[req.params.id].players.push(req.body);
   }
-  return res.json(rmListenersToSend(req.params.id));
+  return res.json(mainState.games[req.params.id]);
 });
 
 app.post('/game/:id/start', (req, res) => {
-  if (!req.params.id && !req.body) return res.sendStatus(400);
+  if (!req.params.id || !req.body) return res.sendStatus(400);
   const game = mainState.games[req.params.id];
   if (!game.haveTv) {
     return res.json({
@@ -64,8 +63,8 @@ app.post('/game/:id/start', (req, res) => {
   game.status = 'started';
   game.q = new Queue(game.players.length);
 
-  emitter.emit(STATE_START, rmListenersToSend(req.params.id));
-  // console.log(JSON.stringify(mainState, null, 2))
+  emitter.emit(STATE_START, mainState.games[req.params.id]);
+
   return res.json({
     gameId: game.gameId,
     pollingUrl: `/game/${game.gameId}/state`,
@@ -74,43 +73,42 @@ app.post('/game/:id/start', (req, res) => {
 });
 
 app.get('/game/:id/state', (req, res) => {
-  mainState.games[req.params.id].listeners.push(res);
+  const fn = (data) => {
+    clearTimeout(timer);
+    return res.json(data);
+  };
+
+  const timer = setTimeout(() => {
+    emitter.off(STATE_START, fn);
+    emitter.off(STATE_FINISH, fn);
+    return res.sendStatus(304);
+  }, 25000);
+
+  emitter.once(STATE_START, fn);
+  emitter.once(STATE_FINISH, fn);
 });
 
 app.post("/game/:id/roll", (req, res) => {
+  if (!req.params.id || !req.body) return res.sendStatus(400);
+
   const game = mainState.games[req.params.id];
+  if (!game) res.sendStatus(404);
 
-  if (!game) res.sendStatus(400);
+  const { roll, username } = req.body;
+  const currentUser = game.players[game.q.current];
 
-  if (game.listeners.length) {
-    const { number, player } = req.body;
-    return emitter.emit(STATE_ROLL, { gameId: game.gameId, current: { roll: number, username: player }}, res);
-  }
+  if (currentUser.username !== username) return res.sendStatus(403);
+  const next = game.q.next();
 
-  return res.sendStatus(403);
+  emitter.emit(STATE_FINISH, {
+    status: 'roll',
+    gameId: game.gameId,
+    next: game.players[next.next],
+    current: { roll, username },
+  });
+  return res.sendStatus(200);
 });
 
-emitter.on(STATE_FINISH, (data, res) => {
-  res.json(data);
-  mainState.games[data.gameId].listeners.forEach((res) => res.json(data))
-  mainState.games[data.gameId].listeners = [];
-});
-
-emitter.on(STATE_START, (data) => {
-  mainState.games[data.gameId].listeners.forEach((res) => res.json(data));
-  mainState.games[data.gameId].listeners = [];
-});
-
-emitter.on(STATE_ROLL, (data, res) => {
-  const next = mainState.games[data.gameId].q.next();
-
-
-  emitter.emit(STATE_FINISH,
-    Object.assign({},
-      data,
-      { next: mainState.games[data.gameId].players[next.next] },
-      { status: 'roll' }), res);
-});
 
 
 app.use('/', express.static(__dirname + '/build'))
