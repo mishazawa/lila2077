@@ -26,6 +26,7 @@ function newGame (gameId) {
   return {
     gameId,
     status: 'new',
+    allowToJoinAfterStart: false,
     haveTv: false,
     players: []
   };
@@ -43,12 +44,24 @@ app.post('/game/create', (req, res) => {
 
 app.post('/game/:id/connect', (req, res) => {
   if (!req.params.id || !req.body) return res.sendStatus(400);
+  const game = mainState.games[req.params.id];
+
+  if (!game) return res.sendStatus(404);
+  if (game.status === 'started' && game.allowToJoinAfterStart !== true) {
+    return res.json({
+      error: 'Can\'t join game after start'
+    });
+  }
 
   if (req.body.isTv) {
-    mainState.games[req.params.id].haveTv = true;
+    game.haveTv = true;
   } else {
-    mainState.games[req.params.id].players.push(req.body);
+    game.players.push(req.body);
+    if (game.status === 'started') {
+      game.q.players += 1;
+    }
   }
+
   return res.json(mainState.games[req.params.id]);
 });
 
@@ -57,10 +70,11 @@ app.post('/game/:id/start', (req, res) => {
   const game = mainState.games[req.params.id];
   if (!game.haveTv) {
     return res.json({
-      error: `can't start game without tv... open game on tv`,
+      error: `Can't start game without TV... Open game on TV`,
     });
   }
   game.status = 'started';
+  game.allowToJoinAfterStart = req.body.allowToJoinAfterStart;
   game.q = new Queue(game.players.length);
 
   emitter.emit(STATE_START, mainState.games[req.params.id]);
@@ -92,7 +106,8 @@ app.post("/game/:id/roll", (req, res) => {
   if (!req.params.id || !req.body) return res.sendStatus(400);
 
   const game = mainState.games[req.params.id];
-  if (!game) res.sendStatus(404);
+  if (!game) return res.sendStatus(404);
+  if (game.status !== 'started') return res.json({ error: 'Game is not started' });
 
   const { roll, username } = req.body;
   const currentUser = game.players[game.q.current];
@@ -106,6 +121,7 @@ app.post("/game/:id/roll", (req, res) => {
     next: game.players[next.next],
     current: { roll, username },
   });
+
   return res.sendStatus(200);
 });
 
