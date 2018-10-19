@@ -36,14 +36,19 @@
             "username": <name of user>,
             "isTv": false
         }
-    ],
-    "listeners": []
+    ]
 }
 ```
 
 #### Start game
 
 **POST** `/game/:id/start`
+
+```json 
+{
+    "allowToJoinAfterStart": <true or false>
+}
+```
 
 ##### response
 
@@ -56,6 +61,8 @@
 ```
 
 #### Polling 
+
+`304 Not modified` after 25 sec of idle state of game 
 
 **GET** `/game/:id/state`
 
@@ -82,11 +89,11 @@
 
 ```json
 {
-	"player": <queue number or username>,
-	"number": <roll number>
+	"username": <name of user>,
+	"roll": <number 1-6>
 }
 ```
 
 ##### response
 
-same as in polling or Forbidden if nobody listen state event (nobody poll)
+OK or Forbidden if roll not in order
