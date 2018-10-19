@@ -44,6 +44,12 @@
 
 **POST** `/game/:id/start`
 
+```json 
+{
+    "allowToJoinAfterStart": <true or false>
+}
+```
+
 ##### response
 
 ```json
