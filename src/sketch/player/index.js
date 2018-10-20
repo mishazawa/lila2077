@@ -1,5 +1,6 @@
 import { Renderable } from './../interfaces/Renderable';
 import { Animation } from './../animation';
+import { Seq } from './../animation/seq';
 import { TILE_SIZE, PLAYER_STATE } from "../constant";
 
 export class Player extends Renderable {
@@ -12,6 +13,12 @@ export class Player extends Renderable {
     this.offset = 0;
     this.currentFrame = 0;
     this.frameCount = 0;
+
+    this.sequence = new Seq(renderer, {
+      framerate: 4,
+      sequence: [0, 1, 2, 3, 4],
+      skin: this.skin,
+    });
   }
 
   move () {
