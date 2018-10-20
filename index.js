@@ -68,22 +68,23 @@ app.post('/game/:id/connect', (req, res) => {
     emitter.emit(STATE_CONNECT, { ...game, status: 'connected', new: req.body });
   }
 
-  return res.json(mainState.games[req.params.id]);
+  return res.json(game);
 });
 
 app.post('/game/:id/start', (req, res) => {
-  if (!req.params.id || !req.body) return res.sendStatus(400);
+  if (!req.params.id) return res.sendStatus(400);
   const game = mainState.games[req.params.id];
   if (!game.haveTv) {
     return res.json({
       error: `Can't start game without TV... Open game on TV`,
     });
   }
+
   game.status = 'started';
   game.allowToJoinAfterStart = req.body.allowToJoinAfterStart;
   game.q = new Queue(game.players.length);
 
-  emitter.emit(STATE_START, mainState.games[req.params.id]);
+  emitter.emit(STATE_START, game);
 
   return res.json({
     gameId: game.gameId,
@@ -95,17 +96,21 @@ app.post('/game/:id/start', (req, res) => {
 app.get('/game/:id/state', (req, res) => {
   const fn = (data) => {
     clearTimeout(timer);
+    emitter.off(STATE_START, fn);
+    emitter.off(STATE_FINISH, fn);
+    emitter.off(STATE_CONNECT, fn);
     return res.json(data);
   };
 
   const timer = setTimeout(() => {
-    emitter.off(STATE_FINISH, fn);
     emitter.off(STATE_START, fn);
+    emitter.off(STATE_FINISH, fn);
     emitter.off(STATE_CONNECT, fn);
     return res.json({});
   }, 25000);
-  emitter.once(STATE_FINISH, fn);
+
   emitter.once(STATE_START, fn);
+  emitter.once(STATE_FINISH, fn);
   emitter.once(STATE_CONNECT, fn);
 });
 
